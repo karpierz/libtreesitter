@@ -1,7 +1,12 @@
+# git show-ref --tags
+
 Fetch URL: https://github.com/tree-sitter/tree-sitter.git
 HEAD branch: master
-commit 6f2e8a6cf4d7025e2b2a7227d270640273100138 (tag: v0.26.7)
+commit cd5b087cd9f45ca6d93ab1954f6b7c8534f324d2 (tag: v0.26.8)
 
 git submodule add https://github.com/tree-sitter/tree-sitter.git src/libtreesitter/tree-sitter.c
 cd src\libtreesitter\tree-sitter.c
-git checkout 6f2e8a6cf4d7025e2b2a7227d270640273100138
+git pull --all
+git checkout cd5b087cd9f45ca6d93ab1954f6b7c8534f324d2
+
+gdif v0.26.7..v0.26.8 -- lib/include/tree_sitter/api.h

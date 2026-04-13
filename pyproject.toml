@@ -7,7 +7,7 @@ requires = [ "setuptools>=81.0.0", "packaging>=26.0.0" ]
 
 [project]
 name = "libtreesitter"
-version = "0.26.7"
+version = "0.26.8"
 description = "Python binding for the libtree-sitter C library."
 keywords = [ "libtreesitter", "libtree-sitter", "tree-sitter", "parsing" ]
 license = "Zlib"
@@ -65,7 +65,7 @@ base = [
 test = [
   { include-group = "base" },
   "deepdiff>=9.0.0",
-  "rich>=14.3.3",
+  "rich>=15.0.0",
 ]
 coverage = [
   { include-group = "test" },
