@@ -1,14 +1,14 @@
+# flake8-in-file-ignores: noqa: E305,E722
+
 # Copyright (c) 2026 Adam Karpierz
 # SPDX-License-Identifier: MIT
 
 from __future__ import annotations
 
-import typing
-from typing import TYPE_CHECKING, TypeVar, TypeAlias
-from collections.abc import Callable
+# import typing
+# from typing import TYPE_CHECKING, TypeVar, TypeAlias
+# from collections.abc import Callable
 import ctypes as ct
-
-from utlx import ctypes as ctx
 
 from ._platform import CFUNC
 from ._dll      import dll
@@ -37,12 +37,18 @@ TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION = 13
 TSStateId = ct.c_uint16
 TSSymbol  = ct.c_uint16
 TSFieldId = ct.c_uint16
-class TSLanguage(ct.Structure): pass
-class TSParser(ct.Structure): pass
-class TSTree(ct.Structure): pass
-class TSQuery(ct.Structure): pass
-class TSQueryCursor(ct.Structure): pass
-class TSLookaheadIterator(ct.Structure): pass
+class TSLanguage(ct.Structure):
+    pass
+class TSParser(ct.Structure):
+    pass
+class TSTree(ct.Structure):
+    pass
+class TSQuery(ct.Structure):
+    pass
+class TSQueryCursor(ct.Structure):
+    pass
+class TSLookaheadIterator(ct.Structure):
+    pass
 
 # This function signature reads one code point from the given string,
 # returning the number of bytes consumed. It should write the code point
@@ -261,10 +267,12 @@ parser_language = CFUNC(ct.POINTER(TSLanguage),
 # Set the language that the parser should use for parsing.
 #
 # Returns a boolean indicating whether or not the language was successfully
-# assigned. True means assignment succeeded. False means there was a version
-# mismatch: the language was generated with an incompatible version of the
-# Tree-sitter CLI. Check the language's ABI version using [`ts_language_abi_version`]
-# and compare it to this library's [`TREE_SITTER_LANGUAGE_VERSION`] and
+# assigned. True means assignment succeeded. False means the language cannot
+# be used for parsing, or it was generated with an incompatible version of the
+# Tree-sitter CLI. Check whether the language can be used for parsing with
+# [`ts_language_is_parseable`]. Check the language's ABI version using
+# [`ts_language_abi_version`] and compare it to this library's
+# [`TREE_SITTER_LANGUAGE_VERSION`] and
 # [`TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION`] constants.
 #
 parser_set_language = CFUNC(ct.c_bool,
@@ -338,10 +346,14 @@ parser_included_ranges = CFUNC(ct.POINTER(TSRange),
 # 2. [`payload`]: An arbitrary pointer that will be passed to each invocation
 #    of the [`read`] function.
 # 3. [`encoding`]: An indication of how the text is encoded. Either
-#    `TSInputEncodingUTF8` or `TSInputEncodingUTF16`.
+#    `TSInputEncodingUTF8`, `TSInputEncodingUTF16LE`, `TSInputEncoding16BE`,
+#    or `TSInputEncodingCustom`.
+# 4. [`decode`]: A function to read one code point from the given input. This
+#    function should return the number of bytes consumed and write the code point
+#    to the [`code_point`] pointer, or write -1 if the input is invalid.
 #
 # This function returns a syntax tree on success, and `NULL` on failure. There
-# are four possible reasons for failure:
+# are two possible reasons for failure:
 # 1. The parser does not have a language assigned. Check for this using the
 #    [`ts_parser_language`] function.
 # 2. Parsing was cancelled due to the progress callback returning true. This callback
@@ -351,6 +363,8 @@ parser_included_ranges = CFUNC(ct.POINTER(TSRange),
 # [`payload`]: TSInput::payload
 # [`encoding`]: TSInput::encoding
 # [`bytes_read`]: TSInput::read
+# [`decode`]: TSInput::decode
+# [`code_point`]: TSDecodeFunction::code_point
 #
 parser_parse = CFUNC(ct.POINTER(TSTree),
     ct.POINTER(TSParser),
@@ -499,6 +513,11 @@ tree_root_node_with_offset = CFUNC(TSNode,
 
 # Get the language that was used to parse the syntax tree.
 #
+# When Tree-sitter is compiled to WebAssembly, this returns the original
+# language if the tree is being accessed from the same WebAssembly instance
+# that created it. Otherwise, this returns a copy of the language that can be
+# used to inspect the tree but cannot be assigned to a parser.
+#
 tree_language = CFUNC(ct.POINTER(TSLanguage),
     ct.POINTER(TSTree))(
     ("ts_tree_language", dll), (
@@ -589,6 +608,11 @@ node_symbol = CFUNC(TSSymbol,
 
 # Get the node's language.
 #
+# When Tree-sitter is compiled to WebAssembly, this returns the original
+# language if the node is being accessed from the same WebAssembly instance
+# that created its tree. Otherwise, this returns a copy of the language that
+# can be used to inspect the tree but cannot be assigned to a parser.
+#
 node_language = CFUNC(ct.POINTER(TSLanguage),
     TSNode)(
     ("ts_node_language", dll), (
@@ -676,7 +700,7 @@ node_is_missing = CFUNC(ct.c_bool,
     (1, "self"),))
 
 # Check if the node is *extra*. Extra nodes represent things like comments,
-# which are not required the grammar, but can appear anywhere.
+# which are not required by the grammar, but can appear anywhere.
 #
 node_is_extra = CFUNC(ct.c_bool,
     TSNode)(
@@ -705,6 +729,11 @@ node_is_error = CFUNC(ct.c_bool,
     (1, "self"),))
 
 # Get this node's parse state.
+#
+# For a missing node, this is the state from the recovery path that was
+# selected by the parser. It can be used with [`ts_lookahead_iterator_new`] to
+# inspect the symbols that are valid in that state. This does not necessarily
+# include every symbol that could be recovered by inserting a missing node.
 #
 node_parse_state = CFUNC(TSStateId,
     TSNode)(
@@ -1192,6 +1221,13 @@ query_delete = CFUNC(None,
     ("ts_query_delete", dll), (
     (1, "self"),))
 
+# Create a copy of a query.
+#
+query_copy = CFUNC(ct.POINTER(TSQuery),
+    ct.POINTER(TSQuery))(
+    ("ts_query_copy", dll), (
+    (1, "self"),))
+
 # Get the number of patterns, captures, or string literals in the query.
 #
 query_pattern_count = CFUNC(ct.c_uint32,
@@ -1301,7 +1337,7 @@ query_capture_name_for_id = CFUNC(ct.POINTER(ct.c_ubyte),
     (1, "index"),
     (1, "length"),))
 
-# Get the quantifier of the query's captures. Each capture is * associated
+# Get the quantifier of the query's captures. Each capture is associated
 # with a numeric id based on the order that it appeared in the query's source.
 #
 query_capture_quantifier_for_id = CFUNC(TSQuantifier,
@@ -1362,7 +1398,7 @@ query_disable_pattern = CFUNC(None,
 #    captures that appear *before* some of the captures from a previous match.
 # 2. Repeatedly call [`ts_query_cursor_next_capture`] to iterate over all of the
 #    individual *captures* in the order that they appear. This is useful if
-#    don't care about which pattern matched, and just want a single ordered
+#    you don't care about which pattern matched, and just want a single ordered
 #    sequence of captures.
 #
 # If you don't care about consuming all of the results, you can stop calling
@@ -1431,7 +1467,7 @@ query_cursor_set_match_limit = CFUNC(None,
 
 # Set the range of bytes in which the query will be executed.
 #
-# The query cursor will return matches that intersect with the given point range.
+# The query cursor will return matches that intersect with the given byte range.
 # This means that a match may be returned even if some of its captures fall
 # outside the specified range, as long as at least part of the match
 # overlaps with the range.
@@ -1439,6 +1475,12 @@ query_cursor_set_match_limit = CFUNC(None,
 # For example, if a query pattern matches a node that spans a larger area
 # than the specified range, but part of that node intersects with the range,
 # the entire match will be returned.
+#
+# NOTE: An `end_byte` of zero is interpreted as `UINT32_MAX`, making the range
+# unbounded.
+#
+# NOTE: An `end_byte` of zero is interpreted as `UINT32_MAX`, making the range
+# unbounded.
 #
 # This will return `false` if the start byte is greater than the end byte, otherwise
 # it will return `true`.
@@ -1454,7 +1496,7 @@ query_cursor_set_byte_range = CFUNC(ct.c_bool,
 
 # Set the range of (row, column) positions in which the query will be executed.
 #
-# The query cursor will return matches that intersect with the given point range.
+# The query cursor will return matches that intersect with the given byte range.
 # This means that a match may be returned even if some of its captures fall
 # outside the specified range, as long as at least part of the match
 # overlaps with the range.
@@ -1462,6 +1504,12 @@ query_cursor_set_byte_range = CFUNC(ct.c_bool,
 # For example, if a query pattern matches a node that spans a larger area
 # than the specified range, but part of that node intersects with the range,
 # the entire match will be returned.
+#
+# NOTE: An `end_point` of `(0, 0)` is interpreted as `POINT_MAX`, making the
+# range unbounded.
+#
+# NOTE: An `end_point` of `(0, 0)` is interpreted as `POINT_MAX`, making the
+# range unbounded.
 #
 # This will return `false` if the start point is greater than the end point, otherwise
 # it will return `true`.
@@ -1483,6 +1531,12 @@ query_cursor_set_point_range = CFUNC(ct.c_bool,
 # can be used together, e.g. to search for any matches that intersect line 5000, as
 # long as they are fully contained within lines 4500-5500
 #
+# NOTE: An `end_byte` of zero is interpreted as `UINT32_MAX`, making the range
+# unbounded.
+#
+# NOTE: An `end_byte` of zero is interpreted as `UINT32_MAX`, making the range
+# unbounded.
+#
 query_cursor_set_containing_byte_range = CFUNC(ct.c_bool,
     ct.POINTER(TSQueryCursor),
     ct.c_uint32,
@@ -1499,6 +1553,12 @@ query_cursor_set_containing_byte_range = CFUNC(ct.c_bool,
 # matches where _all_ nodes are _fully_ contained within the given range. Both functions
 # can be used together, e.g. to search for any matches that intersect line 5000, as
 # long as they are fully contained within lines 4500-5500
+#
+# NOTE: An `end_point` of `(0, 0)` is interpreted as `POINT_MAX`, making the
+# range unbounded.
+#
+# NOTE: An `end_point` of `(0, 0)` is interpreted as `POINT_MAX`, making the
+# range unbounded.
 #
 query_cursor_set_containing_point_range = CFUNC(ct.c_bool,
     ct.POINTER(TSQueryCursor),
@@ -1548,9 +1608,9 @@ query_cursor_next_capture = CFUNC(ct.c_bool,
 #
 # The zero max start depth value can be used as a special behavior and
 # it helps to destructure a subtree by staying on a node and using captures
-# for interested parts. Note that the zero max start depth only limit a search
+# for interested parts. Note that the zero max start depth only limits a search
 # depth for a pattern's root node but other nodes that are parts of the pattern
-# may be searched at any depth what defined by the pattern structure.
+# may be searched at any depth as defined by the pattern structure.
 #
 # Set to `UINT32_MAX` to remove the maximum start depth.
 #
@@ -1578,6 +1638,19 @@ language_copy = CFUNC(ct.POINTER(TSLanguage),
 language_delete = CFUNC(None,
     ct.POINTER(TSLanguage))(
     ("ts_language_delete", dll), (
+    (1, "self"),))
+
+# Check whether this language can be assigned to a parser.
+#
+# Languages obtained from a syntax tree may be used to inspect that tree, but
+# are not necessarily usable for parsing. When Tree-sitter is compiled to
+# WebAssembly, a language obtained from a tree can be used for parsing only
+# within the same WebAssembly instance that created the tree, because lexer
+# function pointers are local to a WebAssembly instance.
+#
+language_is_parseable = CFUNC(ct.c_bool,
+    ct.POINTER(TSLanguage))(
+    ("ts_language_is_parseable", dll), (
     (1, "self"),))
 
 # Get the number of distinct node types in the language.
@@ -1666,7 +1739,7 @@ language_symbol_name = CFUNC(ct.c_char_p,
     (1, "symbol"),))
 
 # Check whether the given node type id belongs to named nodes, anonymous nodes,
-# or a hidden nodes.
+# or hidden nodes.
 #
 # See also [`ts_node_is_named`]. Hidden nodes are never returned from the API.
 #
@@ -1729,13 +1802,17 @@ language_name = CFUNC(ct.c_char_p,
 #
 # Repeatedly using [`ts_lookahead_iterator_next`] and
 # [`ts_lookahead_iterator_current_symbol`] will generate valid symbols in the
-# given parse state. Newly created lookahead iterators will contain the `ERROR`
-# symbol.
+# given parse state. A newly created iterator is not positioned on a symbol
+# until [`ts_lookahead_iterator_next`] is called.
+#
+# The iterator retains the language, so the language may be deleted while the
+# iterator is still in use.
 #
 # Lookahead iterators can be useful to generate suggestions and improve syntax
 # error diagnostics. To get symbols valid in an ERROR node, use the lookahead
 # iterator on its first leaf node state. For `MISSING` nodes, a lookahead
-# iterator created on the previous non-extra leaf node may be appropriate.
+# iterator created on the previous non-extra leaf node, or using the node's
+# parse state may be appropriate.
 #
 lookahead_iterator_new = CFUNC(ct.POINTER(TSLookaheadIterator),
     ct.POINTER(TSLanguage),
@@ -1754,7 +1831,7 @@ lookahead_iterator_delete = CFUNC(None,
 # Reset the lookahead iterator to another state.
 #
 # This returns `true` if the iterator was reset to the given state and `false`
-# otherwise.
+# otherwise. A reset iterator is not positioned on a symbol.
 #
 lookahead_iterator_reset_state = CFUNC(ct.c_bool,
     ct.POINTER(TSLookaheadIterator),
@@ -1766,7 +1843,7 @@ lookahead_iterator_reset_state = CFUNC(ct.c_bool,
 # Reset the lookahead iterator.
 #
 # This returns `true` if the language was set successfully and `false`
-# otherwise.
+# otherwise. A reset iterator is not positioned on a symbol.
 #
 lookahead_iterator_reset = CFUNC(ct.c_bool,
     ct.POINTER(TSLookaheadIterator),
@@ -1793,7 +1870,10 @@ lookahead_iterator_next = CFUNC(ct.c_bool,
     ("ts_lookahead_iterator_next", dll), (
     (1, "self"),))
 
-# Get the current symbol of the lookahead iterator;
+# Get the current symbol of the lookahead iterator.
+#
+# This is only meaningful when the most recent call to
+# [`ts_lookahead_iterator_next`] on `self` returned `true`.
 #
 lookahead_iterator_current_symbol = CFUNC(TSSymbol,
     ct.POINTER(TSLookaheadIterator))(
@@ -1802,6 +1882,9 @@ lookahead_iterator_current_symbol = CFUNC(TSSymbol,
 
 # Get the current symbol type of the lookahead iterator as a null terminated
 # string.
+#
+# This returns `NULL` unless the most recent call to
+# [`ts_lookahead_iterator_next`] on `self` returned `true`.
 #
 lookahead_iterator_current_symbol_name = CFUNC(ct.c_char_p,
     ct.POINTER(TSLookaheadIterator))(
@@ -1812,9 +1895,11 @@ lookahead_iterator_current_symbol_name = CFUNC(ct.c_char_p,
 # Section - WebAssembly Integration #
 # ********************************* #
 
-class wasm_engine_t(ct.Structure): pass
+class wasm_engine_t(ct.Structure):
+    pass
 TSWasmEngine = wasm_engine_t
-class TSWasmStore(ct.Structure): pass
+class TSWasmStore(ct.Structure):
+    pass
 
 TSWasmErrorKind = ct.c_int
 (

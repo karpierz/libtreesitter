@@ -41,16 +41,16 @@ ext_modules = [
     Extension(
         name="libtreesitter._platform.tree_sitter",
         sources=[
-            "src/libtreesitter/tree-sitter.c/lib/src/lib.c",
+            "src/tree-sitter.c/lib/src/lib.c",
             "src/libtreesitter/tree_sitter_py.c",
         ],
         depends=[
-            "src/libtreesitter/tree-sitter.c/lib/include/tree_sitter/api.h",
+            "src/tree-sitter.c/lib/include/tree_sitter/api.h",
             "src/libtreesitter/tree_sitter.def",
         ],
         include_dirs=[
-            "src/libtreesitter/tree-sitter.c/lib/include",
-            "src/libtreesitter/tree-sitter.c/lib/src",
+            "src/tree-sitter.c/lib/include",
+            "src/tree-sitter.c/lib/src",
         ],
         define_macros=[
             ("_POSIX_C_SOURCE", "200112L"),
