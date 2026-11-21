@@ -1,13 +1,13 @@
-# Copyright (c) 2026 Adam Karpierz
-# SPDX-License-Identifier: MIT
+# Copyright (c) 1994 Adam Karpierz
+# SPDX-License-Identifier: Zlib
+
+from __future__ import annotations
 
 import unittest
 import sys
 import logging
 
 from . import test_dir
-
-log = logging.getLogger(__name__)
 
 
 def test_suite(names=None, include=(), exclude=()):

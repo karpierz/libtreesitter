@@ -1,11 +1,15 @@
 Changelog
 =========
 
+0.27.2 (2026-11-20)
+-------------------
+- Upgrade: tree-sitter v0.27.0 -> v0.27.2
+
 0.27.0 (2026-10-05)
 -------------------
 - Upgrade: tree-sitter v0.26.8 -> v0.27.0
 - Full support for Python 3.15
-- Added support for PyPy 3.12
+- Added support for PyPy 3.11 and 3.12
 - Added support for GraalPy 3.13
 - GraalPy <= 3.12 is not supported due to 'ctypes' incompatibility.
 - Dropped support for Python 3.10 (due to compatibility issues).

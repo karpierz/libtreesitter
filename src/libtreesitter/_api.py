@@ -1429,6 +1429,12 @@ query_cursor_exec = CFUNC(None,
 
 # Start running a given query on a given node, with some options.
 #
+# If a progress callback is given, it is called periodically while the query
+# runs. If it returns `true`, query execution halts. Matches that were still in
+# progress are discarded, matches that had already finished can still be
+# returned, and after that the cursor returns nothing more until it is started
+# again with [`ts_query_cursor_exec`] or [`ts_query_cursor_exec_with_options`].
+#
 query_cursor_exec_with_options = CFUNC(None,
     ct.POINTER(TSQueryCursor),
     ct.POINTER(TSQuery),

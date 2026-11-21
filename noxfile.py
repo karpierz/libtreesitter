@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Zlib
 
 # /// script
-# dependencies = ["nox>=2026.8.17", "nox_ext", "nox_lib"]
+# dependencies = ["nox>=2026.10.20", "nox_ext", "nox_lib"]
 # ///
 
 from __future__ import annotations
@@ -77,7 +77,8 @@ for python in tests.python:
         nox_lib.build.build_wheel_py(session, with_pyc_wheel=True)
 
 @nox.session(python=[PY_DEFAULT], default=False,
-    requires=[f"build_py-{python}" for python in tests.python] + ["docs"])
+    requires=[f"build_py-{python}" for python in tests.python] +
+             [ "coverage", "lint", "typing", "docs"])
 def build(session: nox.Session) -> None:
     """Building the package - final stage"""
     session.install("--group=build")
@@ -92,13 +93,13 @@ def publish(session: nox.Session) -> None:
     nox_lib.publish.docs_on_gh_pages(session)
 
 @nox.session(python=[PY_DEFAULT])
-def typing(session: nox.Session) -> None:
-    """Static type checking"""
-    session.install(".", "--group=typing")
-    nox_lib.typing.mypy(session)
-
-@nox.session(python=[PY_DEFAULT])
 def lint(session: nox.Session) -> None:
     """Checking code style and quality"""
     session.install(".", "--group=lint")
     nox_lib.lint.flake8(session)
+
+@nox.session(python=[PY_DEFAULT])
+def typing(session: nox.Session) -> None:
+    """Static type checking"""
+    session.install(".", "--group=typing")
+    nox_lib.typing.mypy(session)
